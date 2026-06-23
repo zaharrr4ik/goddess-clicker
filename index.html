@@ -1587,6 +1587,7 @@
             const y = e.clientY || (e.touches?.[0]?.clientY) || rect.top;
 
             playClickSound();
+            createFloatingNumber(x, y, `+${formatNumber(value)}`, value > 10);
             createParticle(x, y);
 
             const girlEl = document.getElementById('girl-container');

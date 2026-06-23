@@ -1,4 +1,7 @@
 *.png
+*.jpg
+*.jpeg
 !assets/**/*.png
+!assets/**/*.jpg
 *.md
 .git

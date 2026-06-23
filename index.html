@@ -1582,7 +1582,6 @@
         function handleGirlTap(e) {
             if (viewStage > gameState.currentStage) return;
             const value = handleTap();
-            const rect = e.target.getBoundingClientRect();
 
             playClickSound();
 
@@ -1598,7 +1597,6 @@
                 streakEl.textContent = `🔥 Стрик x${gameState.streakMultiplier}`;
                 streakEl.classList.add('show');
             }
-        }
         }
 
         function createFloatingNumber(x, y, text, isBig) {

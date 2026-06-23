@@ -209,6 +209,8 @@ function stageUp() {
     
     if (typeof updateAllUI === 'function') updateAllUI();
     saveGame();
+
+    setTimeout(() => showInterstitial(), 500);
 }
 
 // =====================================================

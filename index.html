@@ -1437,6 +1437,14 @@
             if (offlineAmount > 0) showOfflineModal(offlineAmount);
             setupEventListeners();
             setInterval(updateBoosters, 1000);
+            let gameplayTimer = 0;
+            setInterval(() => {
+                gameplayTimer++;
+                if (gameplayTimer >= 180) {
+                    gameplayTimer = 0;
+                    showInterstitial();
+                }
+            }, 1000);
             setInterval(updateGiftTimer, 1000);
             setInterval(updateUpgradeEffects, 1000);
             setInterval(spawnFloatingBonus, 8000);
@@ -1925,20 +1933,50 @@
             const elapsed = gameState.giftTimeElapsed || 0;
             const claimed = gameState.giftsClaimed || [];
             let hasAvailable = false;
+            let giftIndex = -1;
             for (let i = GIFT_REWARDS.length - 1; i >= 0; i--) {
                 if (!claimed.includes(i) && elapsed >= GIFT_REWARDS[i].time) {
                     hasAvailable = true;
+                    giftIndex = i;
                     break;
                 }
             }
             if (hasAvailable) {
                 const amount = claimGift();
-                createFloatingNumber(window.innerWidth/2, window.innerHeight/2, `+${amount} 💎`, true);
-                playClickSound();
                 pulseCurrency('crystal');
                 updateGiftTimer();
                 updateAllUI();
             }
+        }
+
+        async function showDailyBonusDouble() {
+            const elapsed = gameState.giftTimeElapsed || 0;
+            const claimed = gameState.giftsClaimed || [];
+            let giftIndex = -1;
+            for (let i = GIFT_REWARDS.length - 1; i >= 0; i--) {
+                if (!claimed.includes(i) && elapsed >= GIFT_REWARDS[i].time) {
+                    giftIndex = i;
+                    break;
+                }
+            }
+            if (giftIndex === -1) return;
+            const reward = GIFT_REWARDS[giftIndex].reward;
+            await showRewardedVideo(() => {
+                gameState.crystals += reward * 2;
+                gameState.totalCrystalsEarned += reward * 2;
+                if (!gameState.giftsClaimed) gameState.giftsClaimed = [];
+                gameState.giftsClaimed.push(giftIndex);
+                if (gameState.giftsClaimed.length >= GIFT_REWARDS.length) {
+                    gameState.giftsClaimed = [];
+                    gameState.lastGiftClaim = Date.now();
+                } else {
+                    gameState.lastGiftClaim = Date.now() - ((GIFT_REWARDS[giftIndex].time + 1) * 1000);
+                }
+                saveGame();
+                pulseCurrency('crystal');
+                updateGiftTimer();
+                updateAllUI();
+            });
         }
 
         function openGiftModal() {
@@ -1990,7 +2028,7 @@
                 if (isClaimed) {
                     rightContent = `<span class="gift-check">✅</span>`;
                 } else if (isCurrent) {
-                    rightContent = `<button class="gift-claim-btn" onclick="claimFromModal(${i})">Забрать</button>`;
+                    rightContent = `<button class="gift-claim-btn" onclick="claimFromModal(${i})">Забрать</button> <button class="gift-claim-btn" style="background:linear-gradient(135deg,#ffd700,#ffaa00);color:#1a0a2e;" onclick="claimFromModalDouble(${i})">x2 🎬</button>`;
                 } else {
                     const timeUntil = r.time - elapsed;
                     const tMins = Math.floor(timeUntil / 60);
@@ -2029,6 +2067,27 @@
             updateGiftTimer();
             updateAllUI();
             renderGiftList();
+        }
+
+        async function claimFromModalDouble(index) {
+            const reward = GIFT_REWARDS[index].reward;
+            await showRewardedVideo(() => {
+                gameState.crystals += reward * 2;
+                gameState.totalCrystalsEarned += reward * 2;
+                if (!gameState.giftsClaimed) gameState.giftsClaimed = [];
+                gameState.giftsClaimed.push(index);
+                if (gameState.giftsClaimed.length >= GIFT_REWARDS.length) {
+                    gameState.giftsClaimed = [];
+                    gameState.lastGiftClaim = Date.now();
+                } else {
+                    gameState.lastGiftClaim = Date.now() - ((GIFT_REWARDS[index].time + 1) * 1000);
+                }
+                saveGame();
+                pulseCurrency('crystal');
+                updateGiftTimer();
+                updateAllUI();
+                renderGiftList();
+            });
         }
 
         window.onStageUp = function(stage) {

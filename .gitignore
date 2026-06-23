@@ -1,0 +1,4 @@
+*.png
+!assets/**/*.png
+*.md
+.git

@@ -1,0 +1,1897 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script src="https://yandex.ru/games/sdk/v2"></script>
+    <title>Богиня клика</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            overscroll-behavior: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        body {
+            background: #0a0a1a;
+            overflow: hidden;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+        }
+        #game-container {
+            width: 100vw; height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+        #game-bg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            z-index: 0;
+        }
+        #bg-stars {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .star {
+            position: absolute;
+            width: 2px; height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 2s ease-in-out infinite;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        /* UI Overlay */
+        #ui-overlay {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .ui-element { pointer-events: auto; }
+
+        /* Currency Display */
+        #currency-bar {
+            position: absolute;
+            top: 12px; left: 12px; right: 12px;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+        .currency-item {
+            background: rgba(0,0,0,0.85);
+            padding: 14px 24px;
+            border-radius: 30px;
+            color: white;
+            font-size: 26px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            border: 2px solid rgba(255,255,255,0.15);
+            min-width: 140px;
+            justify-content: center;
+        }
+        .currency-item.pulse {
+            animation: pulse 0.3s ease-out;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+        .currency-icon { font-size: 28px; }
+        .currency-value { min-width: 70px; text-align: right; }
+
+        /* Stage Info */
+        #stage-info {
+            position: absolute;
+            top: 55px; left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 28px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.15);
+            z-index: 12;
+        }
+        #stage-name {
+            font-size: 30px; font-weight: bold;
+            text-shadow: 0 2px 15px rgba(102, 126, 234, 1);
+            line-height: 1.1;
+        }
+        #stage-nav {
+            display: flex; align-items: center; gap: 14px;
+            justify-content: center;
+        }
+        .stage-nav-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white; font-size: 18px;
+            width: 32px; height: 32px;
+            border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.15s, background 0.2s;
+        }
+        .stage-nav-btn:active { transform: scale(0.9); }
+        .stage-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        #stage-level {
+            font-size: 11px; opacity: 0.6;
+            text-transform: uppercase; letter-spacing: 2px;
+            margin-top: 2px;
+        }
+        #stage-desc {
+            font-size: 13px; opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 3px; margin-top: 4px;
+        }
+        #multiplier-display {
+            font-size: 13px; color: #ffd700; margin-top: 6px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+        }
+
+        /* Progress Bar */
+        #next-stage-progress {
+            position: absolute;
+            top: 175px; left: 50%;
+            transform: translateX(-50%);
+            width: 70%; max-width: 320px;
+            z-index: 12;
+        }
+        .progress-bar {
+            width: 100%; height: 12px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 6px; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            background-size: 200% 100%;
+            animation: shimmer 3s linear infinite;
+            transition: width 0.3s ease-out;
+            border-radius: 6px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .progress-text {
+            color: rgba(255,255,255,0.8);
+            font-size: 13px; font-weight: bold;
+            text-align: center; margin-top: 6px;
+            text-shadow: 0 1px 5px rgba(0,0,0,0.8);
+        }
+
+        /* Girl Container */
+        #girl-container {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            transition: transform 0.1s ease-out;
+            z-index: 5;
+        }
+        #girl-container.locked {
+            cursor: default;
+        }
+        #girl-container.locked:active {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        #locked-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            border-radius: 20px;
+        }
+        #locked-overlay.show {
+            display: flex;
+        }
+        .locked-title {
+            font-size: 28px;
+            font-weight: 900;
+            color: #ffd700;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.8), 0 0 60px rgba(255, 215, 0, 0.5);
+            text-align: center;
+            animation: lockedPulse 2s ease-in-out infinite;
+        }
+        .locked-mult {
+            font-size: 22px;
+            font-weight: bold;
+            color: white;
+            margin-top: 12px;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+        }
+        .locked-need {
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 8px;
+        }
+        .locked-teaser {
+            font-size: 18px;
+            color: #f093fb;
+            margin-top: 10px;
+            font-style: italic;
+            text-align: center;
+            max-width: 280px;
+            text-shadow: 0 0 10px rgba(240, 147, 251, 0.5);
+            animation: teaserPulse 3s ease-in-out infinite;
+        }
+        @keyframes teaserPulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        @keyframes lockedPulse {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+        #girl-container.tap {
+            animation: tapBounce 0.15s ease-out;
+        }
+        @keyframes tapBounce {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.05); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+        #girl-sprite {
+            width: 85vw; height: 70vh;
+            max-width: 550px; max-height: 650px;
+            overflow: visible;
+            position: relative;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+        }
+        #girl-sprite img {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 10px 40px rgba(0,0,0,0.5));
+        }
+        #girl-emoji { display: none; }
+        #girl-label {
+            position: absolute;
+            bottom: 10px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 2px 15px rgba(0,0,0,1), 0 0 30px rgba(102, 126, 234, 0.9);
+            white-space: nowrap;
+            background: rgba(0,0,0,0.75);
+            padding: 12px 28px;
+            border-radius: 25px;
+            border: 2px solid rgba(102, 126, 234, 0.5);
+            box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+        }
+        #next-hint {
+            position: absolute;
+            bottom: -40px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            font-size: 14px;
+            font-style: italic;
+            color: #f093fb;
+            text-align: center;
+            max-width: 80vw;
+            text-shadow: 0 0 10px rgba(240, 147, 251, 0.5);
+            animation: teaserPulse 3s ease-in-out infinite;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        #next-hint.show { opacity: 1; }
+        #total-bonus {
+            position: absolute;
+            top: 50%; left: max(15px, calc(50% - 480px));
+            transform: translateY(-50%);
+            color: #ffd700;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 0 0 25px rgba(255, 215, 0, 1), 0 0 50px rgba(255, 215, 0, 0.8), 0 0 80px rgba(255, 165, 0, 0.6), 0 3px 10px rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.75);
+            padding: 10px 18px;
+            border-radius: 18px;
+            border: 2px solid rgba(255, 215, 0, 0.6);
+            z-index: 15;
+            white-space: nowrap;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.4), inset 0 0 15px rgba(255, 215, 0, 0.1);
+            animation: bonusPulse 2s ease-in-out infinite;
+            transition: color 0.5s, text-shadow 0.5s, border-color 0.5s, box-shadow 0.5s;
+        }
+        @keyframes bonusPulse {
+            0%, 100% { transform: translateY(-50%) scale(1); filter: brightness(1); }
+            50% { transform: translateY(-50%) scale(1.06); filter: brightness(1.2); }
+        }
+        #total-bonus.tier-high {
+            color: #ff4444;
+            border-color: rgba(255, 68, 68, 0.6);
+            text-shadow: 0 0 25px rgba(255, 68, 68, 1), 0 0 50px rgba(255, 68, 68, 0.8), 0 0 80px rgba(255, 0, 0, 0.5);
+            box-shadow: 0 0 30px rgba(255, 68, 68, 0.4), inset 0 0 15px rgba(255, 68, 68, 0.1);
+        }
+        #total-bonus.tier-mega {
+            color: #bf00ff;
+            border-color: rgba(191, 0, 255, 0.6);
+            text-shadow: 0 0 25px rgba(191, 0, 255, 1), 0 0 50px rgba(191, 0, 255, 0.8), 0 0 80px rgba(150, 0, 200, 0.5);
+            box-shadow: 0 0 30px rgba(191, 0, 255, 0.4), inset 0 0 15px rgba(191, 0, 255, 0.1);
+            animation: bonusPulse 1.5s ease-in-out infinite;
+        }
+        #active-bonuses-list {
+            position: absolute;
+            top: calc(50% + 35px); left: max(15px, calc(50% - 480px));
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 15;
+        }
+        .active-bonus-badge {
+            background: rgba(0,0,0,0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 5px 12px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+            animation: badgeFadeIn 0.3s ease-out;
+        }
+        .active-bonus-badge .badge-icon {
+            font-size: 14px;
+        }
+        .active-bonus-badge .badge-text {
+            opacity: 0.9;
+        }
+        .active-bonus-badge .badge-timer {
+            color: #ffd700;
+            font-size: 11px;
+        }
+        @keyframes badgeFadeIn {
+            0% { opacity: 0; transform: translateX(-10px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Floating Numbers */
+        .floating-number {
+            position: absolute;
+            font-size: 36px; font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 40px rgba(255, 215, 0, 0.7), 0 3px 6px rgba(0,0,0,0.7);
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            z-index: 100;
+        }
+        .floating-number.big {
+            font-size: 48px; color: #ff6b6b;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 1), 0 0 40px rgba(255, 107, 107, 0.7), 0 3px 6px rgba(0,0,0,0.7);
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(0.5); }
+            20% { transform: translateY(-20px) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-120px) scale(0.8); }
+        }
+
+        /* Streak Display */
+        #streak-display {
+            position: absolute;
+            top: 210px; left: 50%;
+            transform: translateX(-50%);
+            color: #ffd700; font-size: 16px; font-weight: bold;
+            opacity: 0; transition: opacity 0.3s;
+            text-shadow: 0 0 15px rgba(255, 215, 0, 0.7);
+            background: rgba(0,0,0,0.6);
+            padding: 6px 16px;
+            border-radius: 15px;
+            z-index: 12;
+        }
+        #streak-display.show { opacity: 1; }
+
+        /* Buttons */
+        .game-btn {
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            cursor: pointer;
+            box-shadow: 0 6px 25px rgba(0,0,0,0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+            gap: 2px;
+        }
+        .game-btn:active { transform: scale(0.9); }
+        .game-btn svg { width: 42px; height: 42px; fill: white; }
+        .game-btn-label {
+            font-size: 11px; color: white; font-weight: bold;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+        }
+        #daily-btn {
+            position: absolute; bottom: 40px; left: 25px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            overflow: visible;
+        }
+        #daily-btn.has-bonus {
+            animation: glow 1.5s ease-in-out infinite;
+        }
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 6px 25px rgba(240, 147, 251, 0.4); }
+            50% { box-shadow: 0 6px 40px rgba(240, 147, 251, 0.9); }
+        }
+        #daily-timer {
+            position: absolute;
+            bottom: 150px; left: 25px;
+            background: rgba(0,0,0,0.85);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            padding: 10px 18px;
+            border-radius: 16px;
+            white-space: nowrap;
+            border: 1px solid rgba(255,255,255,0.2);
+            text-align: center;
+            z-index: 15;
+        }
+        #daily-timer .timer-reward {
+            color: #ffd700;
+            font-size: 18px;
+        }
+        #daily-timer .timer-next {
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+            margin-top: 3px;
+        }
+
+        /* Active Boosters */
+        #boosters-display {
+            position: absolute; top: 120px; right: 20px;
+            display: flex; flex-direction: column; gap: 8px;
+            z-index: 12;
+        }
+        .booster-badge {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.9) 0%, rgba(255, 165, 0, 0.9) 100%);
+            color: #1a0a2e;
+            padding: 8px 16px; border-radius: 18px;
+            font-size: 14px; font-weight: bold;
+            display: flex; align-items: center; gap: 5px;
+            box-shadow: 0 2px 12px rgba(255, 215, 0, 0.4);
+        }
+
+        /* Particles */
+        #particles {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; overflow: hidden; z-index: 50;
+        }
+        .particle {
+            position: absolute; font-size: 32px;
+            animation: particleFloat 1s ease-out forwards;
+            pointer-events: none;
+            filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+        }
+        @keyframes particleFloat {
+            0% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+            100% { opacity: 0; transform: translateY(-100px) scale(0.3) rotate(180deg); }
+        }
+
+        /* Confetti */
+        .confetti {
+            position: absolute;
+            width: 12px; height: 12px;
+            animation: confettiFall 2s ease-out forwards;
+            pointer-events: none;
+        }
+        @keyframes confettiFall {
+            0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+            100% { opacity: 0; transform: translateY(100vh) rotate(720deg); }
+        }
+        @keyframes floatDown {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            80% { opacity: 1; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none; justify-content: center; align-items: center;
+            z-index: 200;
+            backdrop-filter: blur(5px);
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-content {
+            background: linear-gradient(135deg, #2d1b69 0%, #1a0a2e 100%);
+            padding: 35px; border-radius: 30px;
+            text-align: center; color: white;
+            max-width: 340px; width: 88%;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.6);
+            border: 2px solid rgba(255,255,255,0.1);
+            animation: modalPop 0.3s ease-out;
+        }
+        @keyframes modalPop {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .modal-content h2 {
+            margin-bottom: 15px; font-size: 26px;
+            background: linear-gradient(135deg, #667eea 0%, #f093fb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .modal-content p {
+            margin-bottom: 15px; font-size: 18px; line-height: 1.5;
+        }
+        .modal-amount {
+            font-size: 40px; font-weight: bold;
+            color: #ffd700; margin: 15px 0;
+            text-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+        }
+        .modal-btn {
+            padding: 14px 35px; border: none; border-radius: 30px;
+            font-size: 18px; font-weight: bold; cursor: pointer;
+            margin: 8px; transition: transform 0.2s;
+        }
+        .modal-btn:active { transform: scale(0.95); }
+        .btn-claim {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 5px 25px rgba(102, 126, 234, 0.5);
+        }
+        .btn-double {
+            background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+            color: #1a0a2e;
+            box-shadow: 0 5px 25px rgba(255, 215, 0, 0.5);
+        }
+
+        /* Stage Modal */
+        #stage-modal .stage-emoji {
+            font-size: 100px; margin-bottom: 15px;
+            animation: bounceIn 0.5s ease-out;
+        }
+        @keyframes bounceIn {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        #stage-modal .stage-new-name {
+            font-size: 32px; font-weight: bold; margin-bottom: 8px;
+        }
+        #stage-modal .stage-new-desc {
+            font-size: 18px; opacity: 0.8; margin-bottom: 8px;
+        }
+        #stage-modal .stage-bonus {
+            font-size: 15px; color: #ffd700;
+        }
+
+        .close-btn {
+            width: 42px; height: 42px;
+            background: rgba(255,255,255,0.1);
+            border: none; border-radius: 50%;
+            color: white; font-size: 24px; cursor: pointer;
+        }
+        .shop-item {
+            background: rgba(255,255,255,0.06);
+            padding: 16px; border-radius: 18px;
+            margin-bottom: 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .item-icon { font-size: 32px; margin-right: 14px; }
+        .item-info { flex: 1; }
+        .item-name { color: white; font-weight: bold; font-size: 16px; margin-bottom: 4px; }
+        .item-desc { color: rgba(255,255,255,0.6); font-size: 12px; }
+        .item-status { font-size: 11px; color: #4ade80; margin-top: 4px; }
+        .item-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 10px 18px; border-radius: 20px;
+            color: white; font-weight: bold; cursor: pointer;
+            border: none; font-size: 14px; transition: transform 0.2s;
+        }
+        .item-btn:active { transform: scale(0.95); }
+        .item-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+        .item-btn.rewarded {
+            background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+            color: #1a0a2e;
+        }
+
+        /* Sound Toggle */
+        #sound-toggle {
+            position: absolute;
+            top: 85px; left: 35px;
+            width: 50px; height: 50px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px;
+            color: white; font-size: 24px;
+            cursor: pointer; z-index: 300;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* Gift Modal */
+        #gift-modal {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: none; justify-content: center; align-items: center;
+            z-index: 200;
+            backdrop-filter: blur(5px);
+        }
+        #gift-modal.show { display: flex; }
+        .gift-content {
+            background: linear-gradient(135deg, #2d1b69 0%, #1a0a2e 100%);
+            padding: 28px; border-radius: 28px;
+            text-align: center; color: white;
+            max-width: 340px; width: 88%;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.6);
+            border: 2px solid rgba(255,255,255,0.1);
+            animation: modalPop 0.3s ease-out;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .gift-content h2 {
+            font-size: 24px; margin-bottom: 18px;
+            background: linear-gradient(135deg, #f093fb 0%, #ffd700 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .gift-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            transition: background 0.2s;
+        }
+        .gift-item.claimed {
+            background: rgba(74, 222, 128, 0.1);
+            border-color: rgba(74, 222, 128, 0.3);
+        }
+        .gift-item.current {
+            background: rgba(255, 215, 0, 0.15);
+            border-color: rgba(255, 215, 0, 0.4);
+            animation: giftPulse 1.5s ease-in-out infinite;
+        }
+        .gift-item.locked {
+            opacity: 0.5;
+        }
+        @keyframes giftPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
+            50% { box-shadow: 0 0 15px 2px rgba(255, 215, 0, 0.3); }
+        }
+        .gift-icon {
+            font-size: 28px;
+            margin-right: 14px;
+            min-width: 36px;
+            text-align: center;
+        }
+        .gift-info {
+            flex: 1;
+            text-align: left;
+        }
+        .gift-name {
+            font-size: 15px;
+            font-weight: bold;
+            color: white;
+        }
+        .gift-time {
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 2px;
+        }
+        .gift-reward {
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffd700;
+            min-width: 50px;
+            text-align: right;
+        }
+        .gift-check {
+            color: #4ade80;
+            font-size: 18px;
+            margin-left: 8px;
+        }
+        .gift-claim-btn {
+            background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+            color: #1a0a2e;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 16px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        .gift-claim-btn:active { transform: scale(0.95); }
+        .gift-claim-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .gift-close {
+            margin-top: 16px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 30px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .gift-close:active { transform: scale(0.95); }
+
+        /* Upgrades Shop Button */
+        #upgrades-btn {
+            position: absolute;
+            top: 50%; right: max(15px, calc(50% - 480px));
+            transform: translateY(-50%);
+            color: #4ade80;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 0 0 25px rgba(74, 222, 128, 1), 0 0 50px rgba(74, 222, 128, 0.8), 0 0 80px rgba(0, 200, 80, 0.6), 0 3px 10px rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.75);
+            padding: 10px 18px;
+            border-radius: 18px;
+            border: 2px solid rgba(74, 222, 128, 0.6);
+            z-index: 15;
+            white-space: nowrap;
+            box-shadow: 0 0 30px rgba(74, 222, 128, 0.4), inset 0 0 15px rgba(74, 222, 128, 0.1);
+            animation: upgradesPulse 2s ease-in-out infinite;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #upgrades-btn:active { transform: translateY(-50%) scale(0.95); }
+        @keyframes upgradesPulse {
+            0%, 100% { transform: translateY(-50%) scale(1); filter: brightness(1); }
+            50% { transform: translateY(-50%) scale(1.06); filter: brightness(1.2); }
+        }
+        #upgrades-bonuses-list {
+            position: absolute;
+            top: calc(50% + 35px); right: max(15px, calc(50% - 480px));
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+            z-index: 15;
+        }
+        .upgrade-badge {
+            background: rgba(0,0,0,0.7);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 12px;
+            padding: 5px 12px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+        }
+
+        /* Upgrades Modal */
+        #upgrades-modal {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.92);
+            display: none; justify-content: center; align-items: center;
+            z-index: 200;
+        }
+        #upgrades-modal.show { display: flex; }
+        .upgrades-content {
+            background: linear-gradient(180deg, #1a0a2e 0%, #2d1b69 100%);
+            width: 95%; max-width: 700px; max-height: 85vh;
+            border-radius: 28px; padding: 24px;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.6);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            overflow-y: auto;
+        }
+        .upgrades-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 16px;
+        }
+        .upgrades-header h2 {
+            color: white; font-size: 22px;
+        }
+        .upgrades-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .upgrades-section-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+        }
+        .upgrades-section-title.premium {
+            color: #ffd700;
+            border-bottom-color: rgba(255, 215, 0, 0.3);
+        }
+        .upgrades-section-title.regular {
+            color: #4ade80;
+            border-bottom-color: rgba(74, 222, 128, 0.3);
+        }
+        .shop-item {
+            background: rgba(255,255,255,0.06);
+            padding: 14px; border-radius: 16px;
+            margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .item-icon { font-size: 28px; margin-right: 10px; }
+        .item-info { flex: 1; }
+        .item-name { color: white; font-weight: bold; font-size: 14px; margin-bottom: 2px; }
+        .item-desc { color: rgba(255,255,255,0.5); font-size: 11px; }
+        .item-status { font-size: 10px; color: #4ade80; margin-top: 3px; }
+        .item-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 8px 14px; border-radius: 16px;
+            color: white; font-weight: bold; cursor: pointer;
+            border: none; font-size: 12px; transition: transform 0.2s;
+            white-space: nowrap;
+        }
+        .item-btn:active { transform: scale(0.95); }
+        .item-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+        .item-btn.rewarded {
+            background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+            color: #1a0a2e;
+        }
+        .upgrades-reset-note {
+            color: rgba(255,255,255,0.4); font-size: 11px;
+            text-align: center; margin-top: 10px; grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <img id="game-bg" src="assets/backgrounds/photo_1_2026-06-22_23-44-35.jpg" alt="Фон">
+        <div id="bg-stars"></div>
+
+        <div id="ui-overlay">
+            <div id="currency-bar" class="ui-element">
+                <div class="currency-item" id="soft-item">
+                    <span class="currency-icon">💖</span>
+                    <span class="currency-value" id="soft-count">0</span>
+                </div>
+                <div class="currency-item" id="crystal-item">
+                    <span class="currency-icon">💎</span>
+                    <span class="currency-value" id="crystal-count">0</span>
+                </div>
+            </div>
+
+            <div id="stage-info">
+                <div id="stage-nav">
+                    <button id="stage-prev" class="stage-nav-btn ui-element" onclick="prevStage()">◀</button>
+                    <div>
+                        <div id="stage-name">Мия</div>
+                        <div id="stage-level">Уровень 1 / 8</div>
+                    </div>
+                    <button id="stage-next" class="stage-nav-btn ui-element" onclick="nextStage()">▶</button>
+                </div>
+                <div id="stage-desc">Скромница</div>
+                <div id="multiplier-display">Множитель: x1.0</div>
+            </div>
+
+            <div id="next-stage-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="progress-text" id="progress-text">0 / 500 до Лины</div>
+            </div>
+
+            <div id="boosters-display"></div>
+            <div id="streak-display">🔥 Стрик x1.5</div>
+
+            <div id="girl-container" class="ui-element">
+                <div id="girl-sprite">
+                    <img id="girl-img" src="assets/sprites/1.png" alt="Девушка">
+                    <div id="girl-emoji">👩</div>
+                    <div id="locked-overlay">
+                        <div class="locked-title">🔒 Следующий<br>уровень</div>
+                        <div class="locked-mult" id="locked-mult"></div>
+                        <div class="locked-teaser" id="locked-teaser"></div>
+                        <div class="locked-need" id="locked-need"></div>
+                    </div>
+                    <div id="girl-label">Тапни меня!</div>
+                    <div id="next-hint"></div>
+                </div>
+            </div>
+
+            <div id="total-bonus">⚡ x1</div>
+            <div id="active-bonuses-list"></div>
+
+            <div id="upgrades-btn" class="ui-element">🛡 Улучшения</div>
+            <div id="upgrades-bonuses-list"></div>
+
+            <div id="daily-btn" class="game-btn ui-element">
+                <svg viewBox="0 0 24 24"><path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/></svg>
+                <span class="game-btn-label">Подарок</span>
+            </div>
+            <div id="daily-timer">
+                <div class="timer-reward" id="daily-reward-text">💎 2</div>
+                <div class="timer-next" id="daily-timer-text">Забирай!</div>
+            </div>
+        </div>
+
+        <div id="particles"></div>
+        <button id="sound-toggle" onclick="toggleSound()">🔊</button>
+
+        <audio id="click-sound" src="assets/buttons/pop1.mp3" preload="auto"></audio>
+        <audio id="btn-sound" src="assets/buttons/pop1.mp3" preload="auto"></audio>
+        <audio id="bg-music" src="assets/music/dan-bodan-anton.mp3" preload="auto" loop></audio>
+
+        <div id="offline-modal" class="modal-overlay">
+            <div class="modal-content">
+                <h2>Пока вас не было!</h2>
+                <p>Вы заработали</p>
+                <div class="modal-amount" id="offline-amount">0 💖</div>
+                <button class="modal-btn btn-claim" onclick="claimOffline(false)">Забрать</button>
+                <button class="modal-btn btn-double" onclick="claimOffline(true)">x2 за видео 💎</button>
+            </div>
+        </div>
+
+        <div id="stage-modal" class="modal-overlay">
+            <div class="modal-content">
+                <div class="stage-emoji" id="stage-emoji">👩</div>
+                <div class="stage-new-name" id="stage-new-name">Лина</div>
+                <div class="stage-new-desc" id="stage-new-desc">Студентка</div>
+                <div class="stage-bonus" id="stage-bonus">+2 💎 | Множитель x1.5</div>
+                <button class="modal-btn btn-claim" onclick="closeStageModal()">Продолжить</button>
+            </div>
+        </div>
+
+        <div id="upgrades-modal">
+            <div class="upgrades-content">
+                <div class="upgrades-header">
+                    <h2>🛡 Магазин</h2>
+                    <button class="close-btn" onclick="closeUpgrades()">×</button>
+                </div>
+                <div class="upgrades-grid">
+                    <div>
+                        <div class="upgrades-section-title regular">Улучшения 💖</div>
+                        <div id="regular-upgrades-list"></div>
+                    </div>
+                    <div>
+                        <div class="upgrades-section-title premium">💎 Премиум</div>
+                        <div id="premium-upgrades-list"></div>
+                    </div>
+                    <div class="upgrades-reset-note">Левые улучшения сбрасываются при престиже</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="gift-modal">
+            <div class="gift-content">
+                <h2>🎁 Подарки</h2>
+                <div id="gift-list"></div>
+                <button class="gift-close" onclick="closeGiftModal()">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+    <script src="save.js"></script>
+    <script src="ads.js"></script>
+    <script src="shop.js"></script>
+
+    <script>
+        // =====================================================
+        // SOUND SYSTEM
+        // =====================================================
+        let soundEnabled = true;
+        const clickSound = document.getElementById('click-sound');
+        const btnSound = document.getElementById('btn-sound');
+        const bgMusic = document.getElementById('bg-music');
+
+        function playClickSound() {
+            if (!soundEnabled) return;
+            clickSound.currentTime = 0;
+            clickSound.volume = 0.08;
+            clickSound.play().catch(() => {});
+        }
+
+        function playBtnSound() {
+            if (!soundEnabled) return;
+            btnSound.currentTime = 0;
+            btnSound.volume = 0.7;
+            btnSound.play().catch(() => {});
+        }
+
+        function playBgMusic() {
+            if (!soundEnabled || !bgMusic.src) return;
+            bgMusic.volume = 0.3;
+            bgMusic.play().catch(() => {});
+        }
+
+        function stopBgMusic() {
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-toggle').textContent = soundEnabled ? '🔊' : '🔇';
+            if (soundEnabled) {
+                playBgMusic();
+            } else {
+                stopBgMusic();
+            }
+        }
+
+        // =====================================================
+        // BACKGROUND STARS
+        // =====================================================
+        function createStars() {
+            const container = document.getElementById('bg-stars');
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.top = Math.random() * 100 + '%';
+                star.style.animationDelay = Math.random() * 2 + 's';
+                star.style.opacity = Math.random() * 0.5 + 0.3;
+                container.appendChild(star);
+            }
+        }
+
+        // =====================================================
+        // CONFETTI
+        // =====================================================
+        function createConfetti() {
+            const colors = ['#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff', '#f093fb'];
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const c = document.createElement('div');
+                    c.className = 'confetti';
+                    c.style.left = Math.random() * 100 + '%';
+                    c.style.top = '-10px';
+                    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    c.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                    c.style.animationDuration = (Math.random() * 1 + 1.5) + 's';
+                    document.getElementById('particles').appendChild(c);
+                    setTimeout(() => c.remove(), 2500);
+                }, i * 30);
+            }
+        }
+
+        // =====================================================
+        // GIFT REWARD SYSTEM
+        // =====================================================
+        const GIFT_REWARDS = [
+            { time: 0,    reward: 1,  label: "Забирай!" },
+            { time: 180,  reward: 2,  label: "Через 3 мин" },
+            { time: 480,  reward: 3, label: "Через 5 мин" },
+            { time: 1080, reward: 4, label: "Через 10 мин" },
+            { time: 1980, reward: 5, label: "Через 15 мин" }
+        ];
+
+        function getCurrentGiftReward() {
+            const elapsed = gameState.giftTimeElapsed || 0;
+            const claimed = gameState.giftsClaimed || [];
+            let current = null;
+            for (let i = GIFT_REWARDS.length - 1; i >= 0; i--) {
+                if (!claimed.includes(i) && elapsed >= GIFT_REWARDS[i].time) {
+                    current = GIFT_REWARDS[i];
+                    break;
+                }
+            }
+            if (!current) {
+                gameState.giftsClaimed = [];
+                current = GIFT_REWARDS[0];
+            }
+            return current;
+        }
+
+        function getNextGiftReward() {
+            const elapsed = gameState.giftTimeElapsed || 0;
+            for (let i = 0; i < GIFT_REWARDS.length; i++) {
+                if (elapsed < GIFT_REWARDS[i].time) {
+                    return GIFT_REWARDS[i];
+                }
+            }
+            return { time: 1980, reward: 30, label: "Каждые 15 мин" };
+        }
+
+        function getGiftTimeLeft() {
+            const elapsed = gameState.giftTimeElapsed || 0;
+            const next = getNextGiftReward();
+            const diff = next.time - elapsed;
+            return Math.max(0, diff);
+        }
+
+        function claimGift() {
+            const current = getCurrentGiftReward();
+            if (!current) return 0;
+            const reward = current.reward;
+            gameState.crystals += reward;
+            gameState.totalCrystalsEarned += reward;
+            if (!gameState.giftsClaimed) gameState.giftsClaimed = [];
+            const elapsed = gameState.giftTimeElapsed || 0;
+            let claimIndex = -1;
+            for (let i = GIFT_REWARDS.length - 1; i >= 0; i--) {
+                if (!gameState.giftsClaimed.includes(i) && elapsed >= GIFT_REWARDS[i].time) {
+                    claimIndex = i;
+                    break;
+                }
+            }
+            if (claimIndex === -1) return reward;
+            gameState.giftsClaimed.push(claimIndex);
+            if (gameState.giftsClaimed.length >= GIFT_REWARDS.length) {
+                gameState.giftsClaimed = [];
+                gameState.lastGiftClaim = Date.now();
+            } else {
+                gameState.lastGiftClaim = Date.now() - ((GIFT_REWARDS[claimIndex].time + 1) * 1000);
+            }
+            saveGame();
+            return reward;
+        }
+
+        function updateGiftTimer() {
+            if (!gameState.lastGiftClaim) {
+                gameState.lastGiftClaim = Date.now();
+                gameState.giftTimeElapsed = 0;
+            }
+
+            const now = Date.now();
+            const elapsed = Math.floor((now - gameState.lastGiftClaim) / 1000);
+            gameState.giftTimeElapsed = elapsed;
+
+            const claimed = gameState.giftsClaimed || [];
+
+            let currentAvailable = null;
+            for (let i = GIFT_REWARDS.length - 1; i >= 0; i--) {
+                if (!claimed.includes(i) && elapsed >= GIFT_REWARDS[i].time) {
+                    currentAvailable = GIFT_REWARDS[i];
+                    break;
+                }
+            }
+
+            let nextAvailable = null;
+            for (let i = 0; i < GIFT_REWARDS.length; i++) {
+                if (!claimed.includes(i) && GIFT_REWARDS[i].time > elapsed) {
+                    nextAvailable = GIFT_REWARDS[i];
+                    break;
+                }
+            }
+
+            const rewardText = document.getElementById('daily-reward-text');
+            const timerText = document.getElementById('daily-timer-text');
+            const btn = document.getElementById('daily-btn');
+
+            if (currentAvailable) {
+                rewardText.textContent = `💎 ${currentAvailable.reward}`;
+                timerText.textContent = 'Забирай! 🎁';
+                btn.classList.add('has-bonus');
+            } else if (nextAvailable) {
+                const timeLeft = nextAvailable.time - elapsed;
+                const mins = Math.floor(timeLeft / 60);
+                const secs = timeLeft % 60;
+                rewardText.textContent = `💎 ${nextAvailable.reward}`;
+                timerText.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                btn.classList.remove('has-bonus');
+            } else {
+                gameState.giftsClaimed = [];
+                gameState.lastGiftClaim = Date.now();
+                gameState.giftTimeElapsed = 0;
+                rewardText.textContent = `💎 ${GIFT_REWARDS[0].reward}`;
+                timerText.textContent = 'Забирай! 🎁';
+                btn.classList.add('has-bonus');
+            }
+        }
+
+        // =====================================================
+        // GAME LOGIC
+        // =====================================================
+        const GIRL_SPRITES = [
+            'assets/sprites/1.png',
+            'assets/sprites/2.png',
+            'assets/sprites/3.png',
+            'assets/sprites/4.png',
+            'assets/sprites/5.png',
+            'assets/sprites/6.png',
+            'assets/sprites/7.png',
+            'assets/sprites/8.png'
+        ];
+        const BACKGROUNDS = [
+            'assets/backgrounds/photo_1_2026-06-22_23-44-35.jpg',
+            'assets/backgrounds/photo_1_2026-06-22_23-44-35.jpg',
+            'assets/backgrounds/photo_1_2026-06-22_23-44-35.jpg',
+            'assets/backgrounds/photo_2_2026-06-22_23-44-35.jpg',
+            'assets/backgrounds/photo_2_2026-06-22_23-44-35.jpg',
+            'assets/backgrounds/photo_2_2026-06-22_23-44-35.jpg',
+            'assets/backgrounds/photo_3_2026-06-22_23-44-35.jpg',
+            'assets/backgrounds/photo_3_2026-06-22_23-44-35.jpg'
+        ];
+        const GIRL_EMOJIS = ["👩", "👧", "🧑‍🦰", "🧝‍♀️", "🧙‍♀️", "⚔️", "👑", "👼"];
+        const PARTICLE_EMOJIS = ["💖", "✨", "💫", "⭐", "🌟"];
+        let offlineAmount = 0;
+        let viewStage = 1;
+
+        function prevStage() {
+            if (viewStage > 1) {
+                viewStage--;
+                updateGirlSprite();
+                updateAllUI();
+            }
+        }
+
+        function nextStage() {
+            if (viewStage < STAGES.length) {
+                viewStage++;
+                updateGirlSprite();
+                updateAllUI();
+            }
+        }
+
+        async function init() {
+            createStars();
+
+            if (!localStorage.getItem('goddessVersion') || localStorage.getItem('goddessVersion') !== '3') {
+                localStorage.removeItem('goddessClicker');
+                localStorage.setItem('goddessVersion', '3');
+            }
+            offlineAmount = await initSaveSystem();
+            if (!gameState.lastGiftClaim) {
+                gameState.lastGiftClaim = Date.now();
+                gameState.giftTimeElapsed = 0;
+            }
+            if (!gameState.giftsClaimed) gameState.giftsClaimed = [];
+            if (!gameState.upgrades) gameState.upgrades = { autoclick: 0, clickPower: 0, luckyBait: 0, rebirth: 0 };
+            if (gameState.crystalClickPower === undefined) gameState.crystalClickPower = 0;
+            updateAllUI();
+            if (offlineAmount > 0) showOfflineModal(offlineAmount);
+            setupEventListeners();
+            setInterval(updateBoosters, 1000);
+            setInterval(updateGiftTimer, 1000);
+            setInterval(updateUpgradeEffects, 1000);
+            setInterval(spawnFloatingBonus, 8000);
+            updateGiftTimer();
+            setTimeout(() => playBgMusic(), 1000);
+            document.addEventListener('click', function firstClick() {
+                playBgMusic();
+                document.removeEventListener('click', firstClick);
+            }, { once: true });
+
+            // === Yandex Games: Game Ready ===
+            if (ysdk && ysdk.features && ysdk.features.LoadingAPI) {
+                ysdk.features.LoadingAPI.ready();
+            }
+
+            // === Sound + GameplayAPI: pause on tab switch ===
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') {
+                    bgMusic.pause();
+                    clickSound.pause();
+                    btnSound.pause();
+                    if (ysdk && ysdk.features && ysdk.features.GameplayAPI) {
+                        ysdk.features.GameplayAPI.stop();
+                    }
+                } else if (soundEnabled) {
+                    bgMusic.play().catch(() => {});
+                    if (ysdk && ysdk.features && ysdk.features.GameplayAPI) {
+                        ysdk.features.GameplayAPI.start();
+                    }
+                }
+            });
+
+            // === Fullscreen on mobile ===
+            document.addEventListener('click', function requestFullscreen() {
+                const el = document.documentElement;
+                const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+                if (rfs) {
+                    try {
+                        const result = rfs.call(el);
+                        if (result && typeof result.catch === 'function') result.catch(() => {});
+                    } catch (e) {}
+                }
+                document.removeEventListener('click', requestFullscreen);
+            }, { once: true });
+
+            // === Block context menu (longtap) ===
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            // === Prevent swipe-to-refresh ===
+            document.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 1) return;
+                if (e.target.closest('#regular-upgrades-list') || e.target.closest('#premium-upgrades-list') || e.target.closest('#gift-list')) return;
+                e.preventDefault();
+            }, { passive: false });
+
+            // === Auto language detection ===
+            if (ysdk && ysdk.environment && ysdk.environment.i18n && ysdk.environment.i18n.lang) {
+                document.documentElement.lang = ysdk.environment.i18n.lang;
+            }
+
+            // === GameplayAPI ===
+            if (ysdk && ysdk.features && ysdk.features.GameplayAPI) {
+                ysdk.features.GameplayAPI.start();
+            }
+        }
+
+        function setupEventListeners() {
+            const girl = document.getElementById('girl-container');
+            girl.addEventListener('click', handleGirlTap);
+            girl.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleGirlTap(e);
+            }, { passive: false });
+
+            document.getElementById('upgrades-btn').addEventListener('click', () => {
+                playBtnSound();
+                openUpgrades();
+            });
+            document.getElementById('daily-btn').addEventListener('click', () => {
+                playBtnSound();
+                const elapsed = gameState.giftTimeElapsed || 0;
+                const claimed = gameState.giftsClaimed || [];
+                let hasAvailable = false;
+                for (let i = GIFT_REWARDS.length - 1; i >= 0; i--) {
+                    if (!claimed.includes(i) && elapsed >= GIFT_REWARDS[i].time) {
+                        hasAvailable = true;
+                        break;
+                    }
+                }
+                if (hasAvailable) {
+                    showDailyBonus();
+                } else {
+                    openGiftModal();
+                }
+            });
+            document.getElementById('daily-btn').addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                playBtnSound();
+                openGiftModal();
+            });
+        }
+
+        function handleGirlTap(e) {
+            if (viewStage > gameState.currentStage) return;
+            const value = handleTap();
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX || (e.touches?.[0]?.clientX) || rect.left + rect.width/2;
+            const y = e.clientY || (e.touches?.[0]?.clientY) || rect.top;
+
+            playClickSound();
+            createFloatingNumber(x, y, `+${formatNumber(value)}`, value > 10);
+            createParticle(x, y);
+
+            const girlEl = document.getElementById('girl-container');
+            girlEl.classList.remove('tap');
+            void girlEl.offsetWidth;
+            girlEl.classList.add('tap');
+
+            pulseCurrency('soft');
+
+            if (gameState.streakMultiplier > 1) {
+                const streakEl = document.getElementById('streak-display');
+                streakEl.textContent = `🔥 Стрик x${gameState.streakMultiplier}`;
+                streakEl.classList.add('show');
+            }
+        }
+
+        function createFloatingNumber(x, y, text, isBig) {
+            const el = document.createElement('div');
+            el.className = 'floating-number' + (isBig ? ' big' : '');
+            el.textContent = text;
+            el.style.left = (x + (Math.random()-0.5)*40) + 'px';
+            el.style.top = y + 'px';
+            document.getElementById('particles').appendChild(el);
+            setTimeout(() => el.remove(), 1000);
+        }
+
+        function createParticle(x, y) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.textContent = PARTICLE_EMOJIS[Math.floor(Math.random() * PARTICLE_EMOJIS.length)];
+            particle.style.left = (x + (Math.random()-0.5)*50) + 'px';
+            particle.style.top = y + 'px';
+            document.getElementById('particles').appendChild(particle);
+            setTimeout(() => particle.remove(), 1000);
+        }
+
+        const FLOATING_BONUS_EMOJIS = ["💰", "🎁", "💎", "⭐", "🪙"];
+        function spawnFloatingBonus() {
+            const luckyLevel = getUpgradeLevel('luckyBait');
+            if (luckyLevel === 0) return;
+            const chance = 0.05 + luckyLevel * 0.05;
+            if (Math.random() > chance) return;
+
+            const el = document.createElement('div');
+            el.className = 'floating-bonus';
+            el.textContent = FLOATING_BONUS_EMOJIS[Math.floor(Math.random() * FLOATING_BONUS_EMOJIS.length)];
+            el.style.left = (10 + Math.random() * 80) + 'vw';
+            el.style.top = '-40px';
+            el.style.cursor = 'pointer';
+            el.style.fontSize = '36px';
+            el.style.position = 'absolute';
+            el.style.zIndex = '60';
+            el.style.pointerEvents = 'auto';
+            el.style.animation = 'floatDown 4s linear forwards';
+            el.style.filter = 'drop-shadow(0 0 10px rgba(255, 215, 0, 0.8))';
+
+            el.addEventListener('click', () => {
+                const reward = Math.floor(getClickValue() * (3 + luckyLevel));
+                gameState.soft += reward;
+                gameState.totalSoftEarned += reward;
+                checkStageUp();
+                createFloatingNumber(el.offsetLeft, el.offsetTop, `+${formatNumber(reward)} 💖`, true);
+                playClickSound();
+                pulseCurrency('soft');
+                el.remove();
+            });
+
+            document.getElementById('particles').appendChild(el);
+            setTimeout(() => { if (el.parentNode) el.remove(); }, 4000);
+        }
+
+        function pulseCurrency(type) {
+            const el = document.getElementById(type === 'soft' ? 'soft-item' : 'crystal-item');
+            el.classList.remove('pulse');
+            void el.offsetWidth;
+            el.classList.add('pulse');
+        }
+
+        function updateGirlSprite() {
+            const img = document.getElementById('girl-img');
+            const overlay = document.getElementById('locked-overlay');
+            const girlContainer = document.getElementById('girl-container');
+
+            if (viewStage > gameState.currentStage) {
+                img.style.display = 'none';
+                overlay.classList.add('show');
+                girlContainer.classList.add('locked');
+                const nextData = STAGES[viewStage - 1];
+                const mult = 1 + (viewStage - 1) * 0.5;
+                document.getElementById('locked-mult').textContent = `Множитель x${mult.toFixed(1)}`;
+                document.getElementById('locked-teaser').textContent = nextData.teaser || '';
+                document.getElementById('locked-need').textContent = `Нужно: ${formatNumber(nextData.threshold)} 💖`;
+            } else {
+                img.style.display = '';
+                overlay.classList.remove('show');
+                girlContainer.classList.remove('locked');
+
+                const hintEl = document.getElementById('next-hint');
+                const nextIdx = viewStage;
+                if (nextIdx < STAGES.length && STAGES[nextIdx].teaser) {
+                    hintEl.textContent = STAGES[nextIdx].teaser;
+                    hintEl.classList.add('show');
+                } else {
+                    hintEl.classList.remove('show');
+                }
+            }
+
+            img.src = GIRL_SPRITES[viewStage - 1] || GIRL_SPRITES[0];
+            const bg = document.getElementById('game-bg');
+            bg.src = BACKGROUNDS[viewStage - 1] || BACKGROUNDS[0];
+        }
+
+        function updateAllUI() {
+            document.getElementById('soft-count').textContent = formatNumber(gameState.soft);
+            document.getElementById('crystal-count').textContent = formatNumber(gameState.crystals);
+            const viewStageData = STAGES[viewStage - 1] || STAGES[0];
+            document.getElementById('stage-name').textContent = viewStageData.name;
+            document.getElementById('stage-desc').textContent = viewStageData.desc;
+            document.getElementById('stage-level').textContent = `Уровень ${viewStage} / ${STAGES.length}`;
+            document.getElementById('multiplier-display').textContent = `Множитель: x${gameState.clickMultiplier.toFixed(1)}`;
+            document.getElementById('girl-emoji').textContent = GIRL_EMOJIS[viewStage - 1] || "👩";
+
+            const prevBtn = document.getElementById('stage-prev');
+            const nextBtn = document.getElementById('stage-next');
+            prevBtn.disabled = viewStage <= 1;
+            nextBtn.disabled = viewStage >= STAGES.length;
+
+            updateGirlSprite();
+
+            const next = getNextStage();
+            if (next) {
+                document.getElementById('progress-fill').style.width = getProgressPercent() + '%';
+                document.getElementById('progress-text').textContent =
+                    `${formatNumber(gameState.totalSoftEarned)} / ${formatNumber(next.threshold)} до ${next.name}`;
+            } else {
+                document.getElementById('progress-fill').style.width = '100%';
+                document.getElementById('progress-text').textContent = 'Максимальный этап!';
+            }
+            updateBoostersDisplay();
+
+            let totalBonus = gameState.clickMultiplier;
+            if (gameState.blessingActive) totalBonus *= 2;
+            if (gameState.superBoostActive) totalBonus *= 3;
+            if (gameState.streakMultiplier > 1) totalBonus *= gameState.streakMultiplier;
+            totalBonus *= (gameState.prestigeMultiplier || 1);
+            totalBonus *= getRebirthMultiplier();
+            const bonusEl = document.getElementById('total-bonus');
+            bonusEl.textContent = `⚡ x${totalBonus.toFixed(1)}`;
+            bonusEl.classList.remove('tier-high', 'tier-mega');
+            if (totalBonus >= 16) bonusEl.classList.add('tier-mega');
+            else if (totalBonus >= 8) bonusEl.classList.add('tier-high');
+
+            updateActiveBonusesList();
+        }
+
+        function updateActiveBonusesList() {
+            const container = document.getElementById('active-bonuses-list');
+            container.innerHTML = '';
+            if (gameState.criticalClick) {
+                container.innerHTML += `<div class="active-bonus-badge"><span class="badge-icon">⚡</span><span class="badge-text">Крит x3</span></div>`;
+            }
+            if (gameState.prestigeMultiplier > 1) {
+                container.innerHTML += `<div class="active-bonus-badge"><span class="badge-icon">👑</span><span class="badge-text">Престиж x${gameState.prestigeMultiplier.toFixed(1)}</span></div>`;
+            }
+            const rl = getUpgradeLevel('rebirth');
+            if (rl > 0) {
+                container.innerHTML += `<div class="active-bonus-badge"><span class="badge-icon">🔄</span><span class="badge-text">Перерождение x${getRebirthMultiplier().toFixed(1)}</span></div>`;
+            }
+            const cp = getUpgradeBonus('clickPower');
+            const ccp = gameState.crystalClickPower || 0;
+            if (cp + ccp > 0) {
+                container.innerHTML += `<div class="active-bonus-badge"><span class="badge-icon">👆</span><span class="badge-text">Сила +${cp + ccp}</span></div>`;
+            }
+            const al = getUpgradeLevel('autoclick');
+            if (al > 0) {
+                container.innerHTML += `<div class="active-bonus-badge"><span class="badge-icon">🤖</span><span class="badge-text">Авто x${al}</span></div>`;
+            }
+            const ll = getUpgradeLevel('luckyBait');
+            if (ll > 0) {
+                container.innerHTML += `<div class="active-bonus-badge"><span class="badge-icon">🍀</span><span class="badge-text">Удача x${ll}</span></div>`;
+            }
+            if (gameState.blessingActive) {
+                container.innerHTML += `<div class="active-bonus-badge"><span class="badge-icon">✨</span><span class="badge-text">Благословение</span><span class="badge-timer">${formatTime(gameState.blessingTimeLeft)}</span></div>`;
+            }
+            if (gameState.superBoostActive) {
+                container.innerHTML += `<div class="active-bonus-badge"><span class="badge-icon">🔥</span><span class="badge-text">Супер-буст</span><span class="badge-timer">${formatTime(gameState.superBoostTimeLeft)}</span></div>`;
+            }
+            if (gameState.streakMultiplier > 1) {
+                container.innerHTML += `<div class="active-bonus-badge"><span class="badge-icon">💫</span><span class="badge-text">Стрик x${gameState.streakMultiplier}</span></div>`;
+            }
+        }
+
+        function updateBoostersDisplay() {
+            const container = document.getElementById('boosters-display');
+            container.innerHTML = '';
+            getActiveBoosters().forEach(b => {
+                const badge = document.createElement('div');
+                badge.className = 'booster-badge';
+                const timeStr = b.timeLeft > 0 ? formatTime(b.timeLeft) : '';
+                badge.textContent = `⚡ ${b.name} ${timeStr}`;
+                container.appendChild(badge);
+            });
+        }
+
+        function updateUpgradeEffects() {
+            const autoclickLevel = getUpgradeLevel('autoclick');
+            if (autoclickLevel > 0) {
+                const value = getClickValue();
+                const totalIncome = value * autoclickLevel;
+                gameState.soft += totalIncome;
+                gameState.totalSoftEarned += totalIncome;
+                gameState.totalTaps += autoclickLevel;
+                checkStageUp();
+
+                const girl = document.getElementById('girl-container');
+                const rect = girl.getBoundingClientRect();
+                const x = rect.left + rect.width / 2 + (Math.random() - 0.5) * 60;
+                const y = rect.top + rect.height / 2 + (Math.random() - 0.5) * 60;
+                createFloatingNumber(x, y, `+${formatNumber(totalIncome)}`, totalIncome > 10);
+                createParticle(x, y);
+                girl.classList.remove('tap');
+                void girl.offsetWidth;
+                girl.classList.add('tap');
+                pulseCurrency('soft');
+                updateAllUI();
+            }
+        }
+
+        function gameplayPause() {
+            if (ysdk && ysdk.features && ysdk.features.GameplayAPI) ysdk.features.GameplayAPI.stop();
+        }
+        function gameplayResume() {
+            if (ysdk && ysdk.features && ysdk.features.GameplayAPI) ysdk.features.GameplayAPI.start();
+        }
+
+        function showOfflineModal(amount) {
+            gameplayPause();
+            document.getElementById('offline-amount').textContent = formatNumber(amount) + ' 💖';
+            document.getElementById('offline-modal').classList.add('show');
+        }
+
+        async function claimOffline(double) {
+            let reward = offlineAmount;
+            let claimed = false;
+            if (double) {
+                await showRewardedVideo(() => {
+                    claimed = true;
+                    reward *= 2;
+                    gameState.soft += reward;
+                    gameState.totalSoftEarned += reward;
+                    checkStageUp();
+                    saveGame();
+                    updateAllUI();
+                });
+                if (!claimed) {
+                    gameState.soft += offlineAmount;
+                    gameState.totalSoftEarned += offlineAmount;
+                    checkStageUp();
+                    saveGame();
+                    updateAllUI();
+                }
+            } else {
+                gameState.soft += reward;
+                gameState.totalSoftEarned += reward;
+                checkStageUp();
+                saveGame();
+                updateAllUI();
+            }
+            document.getElementById('offline-modal').classList.remove('show');
+            offlineAmount = 0;
+            gameplayResume();
+        }
+
+        function showStageModal(stage) {
+            gameplayPause();
+            playClickSound();
+            createConfetti();
+            document.getElementById('stage-emoji').textContent = GIRL_EMOJIS[gameState.currentStage - 1] || "👩";
+            document.getElementById('stage-new-name').textContent = stage.name;
+            document.getElementById('stage-new-desc').textContent = stage.desc;
+            document.getElementById('stage-bonus').textContent = `+2 💎 | Множитель x${gameState.clickMultiplier.toFixed(1)}`;
+            document.getElementById('stage-modal').classList.add('show');
+        }
+
+        function closeStageModal() {
+            playBtnSound();
+            document.getElementById('stage-modal').classList.remove('show');
+            gameplayResume();
+        }
+
+        function openUpgrades() {
+            gameplayPause();
+            playBtnSound();
+            renderUpgradesItems();
+            document.getElementById('upgrades-modal').classList.add('show');
+        }
+
+        function closeUpgrades() {
+            playBtnSound();
+            document.getElementById('upgrades-modal').classList.remove('show');
+            gameplayResume();
+        }
+
+        function renderUpgradesItems() {
+            const regularContainer = document.getElementById('regular-upgrades-list');
+            const premiumContainer = document.getElementById('premium-upgrades-list');
+            regularContainer.innerHTML = '';
+            premiumContainer.innerHTML = '';
+
+            UPGRADES.forEach(item => {
+                const level = getUpgradeLevel(item.id);
+                const canBuy = canBuyUpgrade(item.id);
+                const price = getUpgradePrice(item.id);
+                const maxLabel = item.maxLevel === Infinity ? '∞' : item.maxLevel;
+                let statusText = `Ур. ${level}/${maxLabel}`;
+                if (item.id === 'clickPower' && level > 0) {
+                    statusText += ` (даёт +${getUpgradeBonus('clickPower')})`;
+                }
+                if (item.id === 'rebirth' && level > 0) {
+                    statusText += ` (x${getRebirthMultiplier().toFixed(1)})`;
+                }
+                const div = document.createElement('div');
+                div.className = 'shop-item';
+                div.innerHTML = `
+                    <span class="item-icon">${item.icon}</span>
+                    <div class="item-info">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-desc">${item.desc}</div>
+                        <div class="item-status">${statusText}</div>
+                    </div>
+                    <button class="item-btn ${canBuy ? '' : 'disabled'}"
+                            onclick="${canBuy ? `buyUpgradeBtn('${item.id}')` : ''}">
+                        ${level >= item.maxLevel ? 'Макс' : '💖 ' + price}
+                    </button>
+                `;
+                regularContainer.appendChild(div);
+            });
+
+            SHOP_ITEMS.forEach(item => {
+                const canBuy = canPurchaseItem(item.id);
+                const status = getItemStatus(item.id);
+                const div = document.createElement('div');
+                div.className = 'shop-item';
+                div.innerHTML = `
+                    <span class="item-icon">${item.icon}</span>
+                    <div class="item-info">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-desc">${item.desc}</div>
+                        ${status ? `<div class="item-status">${status}</div>` : ''}
+                    </div>
+                    <button class="item-btn ${canBuy ? '' : 'disabled'}"
+                            onclick="${canBuy ? `buyPremiumBtn('${item.id}')` : ''}">
+                        💎 ${item.price}
+                    </button>
+                `;
+                premiumContainer.appendChild(div);
+            });
+        }
+
+        function buyUpgradeBtn(id) {
+            buyUpgrade(id);
+            playBtnSound();
+            renderUpgradesItems();
+            updateAllUI();
+        }
+
+        function buyPremiumBtn(id) {
+            const result = purchaseItem(id);
+            if (result.type === 'success') {
+                playBtnSound();
+            }
+            renderUpgradesItems();
+            updateAllUI();
+        }
+
+        function getItemStatus(itemId) {
+            const s = getBoostersStatus();
+            if (itemId === 'blessing' && s.blessing.active) return `Активно: ${s.blessing.formatted}`;
+            if (itemId === 'super_boost' && s.superBoost.active) return `Активно: ${s.superBoost.formatted}`;
+            if (itemId === 'eternal_storage' && gameState.eternalStorage) return 'Куплено ✓';
+            if (itemId === 'critical_click' && gameState.criticalClick) return `Ур. ${(gameState.upgrades.critical_click||0)}/2 (x${gameState.upgrades.critical_click >= 2 ? 5 : 3})`;
+            if (itemId === 'crystal_click' && gameState.crystalClickPower > 0) return `+${gameState.crystalClickPower} к клику (${gameState.crystalClickPower/3}x)`;
+            if (itemId === 'prestige' && gameState.prestigeMultiplier > 1) return `Уровень: x${gameState.prestigeMultiplier.toFixed(1)} ✓`;
+            return null;
+        }
+
+        function showDailyBonus() {
+            const elapsed = gameState.giftTimeElapsed || 0;
+            const claimed = gameState.giftsClaimed || [];
+            let hasAvailable = false;
+            for (let i = GIFT_REWARDS.length - 1; i >= 0; i--) {
+                if (!claimed.includes(i) && elapsed >= GIFT_REWARDS[i].time) {
+                    hasAvailable = true;
+                    break;
+                }
+            }
+            if (hasAvailable) {
+                const amount = claimGift();
+                createFloatingNumber(window.innerWidth/2, window.innerHeight/2, `+${amount} 💎`, true);
+                playClickSound();
+                pulseCurrency('crystal');
+                updateGiftTimer();
+                updateAllUI();
+            }
+        }
+
+        function openGiftModal() {
+            gameplayPause();
+            renderGiftList();
+            document.getElementById('gift-modal').classList.add('show');
+        }
+
+        function closeGiftModal() {
+            playBtnSound();
+            document.getElementById('gift-modal').classList.remove('show');
+            gameplayResume();
+        }
+
+        function renderGiftList() {
+            const container = document.getElementById('gift-list');
+            container.innerHTML = '';
+            const elapsed = gameState.giftTimeElapsed || 0;
+            const claimed = gameState.giftsClaimed || [];
+            let currentAvailable = -1;
+
+            for (let i = 0; i < GIFT_REWARDS.length; i++) {
+                if (!claimed.includes(i) && elapsed >= GIFT_REWARDS[i].time) {
+                    currentAvailable = i;
+                }
+            }
+
+            for (let i = 0; i < GIFT_REWARDS.length; i++) {
+                const r = GIFT_REWARDS[i];
+                const div = document.createElement('div');
+                div.className = 'gift-item';
+
+                const isClaimed = claimed.includes(i);
+                const isCurrent = (i === currentAvailable);
+
+                if (isClaimed) {
+                    div.classList.add('claimed');
+                } else if (isCurrent) {
+                    div.classList.add('current');
+                } else {
+                    div.classList.add('locked');
+                }
+
+                const mins = Math.floor(r.time / 60);
+                const secs = r.time % 60;
+                const timeLabel = r.time === 0 ? 'Сразу' : `${mins}:${secs.toString().padStart(2, '0')}`;
+
+                let rightContent = '';
+                if (isClaimed) {
+                    rightContent = `<span class="gift-check">✅</span>`;
+                } else if (isCurrent) {
+                    rightContent = `<button class="gift-claim-btn" onclick="claimFromModal(${i})">Забрать</button>`;
+                } else {
+                    const timeUntil = r.time - elapsed;
+                    const tMins = Math.floor(timeUntil / 60);
+                    const tSecs = timeUntil % 60;
+                    rightContent = `<span class="gift-reward" style="opacity:0.5">${tMins}:${tSecs.toString().padStart(2, '0')}</span>`;
+                }
+
+                div.innerHTML = `
+                    <span class="gift-icon">${isClaimed ? '✅' : (isCurrent ? '🎁' : '🔒')}</span>
+                    <div class="gift-info">
+                        <div class="gift-name">${i === 0 ? 'Первый подарок' : `Подарок #${i + 1}`}</div>
+                        <div class="gift-time">Через ${timeLabel}</div>
+                    </div>
+                    <span class="gift-reward">💎 ${r.reward}</span>
+                    ${rightContent}
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        function claimFromModal(index) {
+            const reward = GIFT_REWARDS[index].reward;
+            gameState.crystals += reward;
+            gameState.totalCrystalsEarned += reward;
+            if (!gameState.giftsClaimed) gameState.giftsClaimed = [];
+            gameState.giftsClaimed.push(index);
+            if (gameState.giftsClaimed.length >= GIFT_REWARDS.length) {
+                gameState.giftsClaimed = [];
+                gameState.lastGiftClaim = Date.now();
+            } else {
+                gameState.lastGiftClaim = Date.now() - ((GIFT_REWARDS[index].time + 1) * 1000);
+            }
+            saveGame();
+            playBtnSound();
+            pulseCurrency('crystal');
+            updateGiftTimer();
+            updateAllUI();
+            renderGiftList();
+        }
+
+        window.onStageUp = function(stage) {
+            showStageModal(stage);
+            updateAllUI();
+        };
+
+        function gameLoop() {
+            updateAllUI();
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.addEventListener('load', () => {
+            init();
+            gameLoop();
+        });
+    </script>
+</body>
+</html>

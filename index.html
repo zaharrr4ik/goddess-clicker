@@ -1543,12 +1543,8 @@
             if (viewStage > gameState.currentStage) return;
             const value = handleTap();
             const rect = e.target.getBoundingClientRect();
-            const x = e.clientX || (e.touches?.[0]?.clientX) || rect.left + rect.width/2;
-            const y = e.clientY || (e.touches?.[0]?.clientY) || rect.top;
 
             playClickSound();
-            createFloatingNumber(x, y, `+${formatNumber(value)}`, value > 10);
-            createParticle(x, y);
 
             const girlEl = document.getElementById('girl-container');
             girlEl.classList.remove('tap');
@@ -1562,6 +1558,7 @@
                 streakEl.textContent = `🔥 Стрик x${gameState.streakMultiplier}`;
                 streakEl.classList.add('show');
             }
+        }
         }
 
         function createFloatingNumber(x, y, text, isBig) {
@@ -1761,16 +1758,6 @@
                 gameState.totalSoftEarned += totalIncome;
                 gameState.totalTaps += autoclickLevel;
                 checkStageUp();
-
-                const girl = document.getElementById('girl-container');
-                const rect = girl.getBoundingClientRect();
-                const x = rect.left + rect.width / 2 + (Math.random() - 0.5) * 60;
-                const y = rect.top + rect.height / 2 + (Math.random() - 0.5) * 60;
-                createFloatingNumber(x, y, `+${formatNumber(totalIncome)}`, totalIncome > 10);
-                createParticle(x, y);
-                girl.classList.remove('tap');
-                void girl.offsetWidth;
-                girl.classList.add('tap');
                 pulseCurrency('soft');
                 updateAllUI();
             }
